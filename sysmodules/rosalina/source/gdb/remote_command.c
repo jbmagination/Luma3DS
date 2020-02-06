@@ -69,12 +69,12 @@ GDB_DECLARE_REMOTE_COMMAND_HANDLER(ConvertVAToPA)
 
         if (R_FAILED(r))
         {
-            n = sprintf(outbuf, "An error occured: %08X\n", r);
+            n = sprintf(outbuf, "An error occured: %08lX\n", r);
             goto end;
         }
     }
 
-    n = sprintf(outbuf, "va: 0x%08X, pa: 0x%08X, b31: 0x%08X\n", val, pa, pa | (1 << 31));
+    n = sprintf(outbuf, "va: 0x%08lX, pa: 0x%08lX, b31: 0x%08lX\n", val, pa, pa | (1 << 31));
 end:
     return GDB_SendHexPacket(ctx, outbuf, n);
 }
@@ -239,7 +239,7 @@ GDB_DECLARE_REMOTE_COMMAND_HANDLER(TranslateHandle)
     else if (token == TOKEN_KPROCESS)
     {
         svcGetProcessInfo((s64 *)serviceBuf, handle, 0x10000);
-        n = sprintf(outbuf, "(%s *)0x%08x /* process: %s, %u %s */\n", classBuf, kernelAddr, serviceBuf, refcount, refcount == 1 ? "reference" : "references");
+        n = sprintf(outbuf, "(%s *)0x%08lx /* process: %s, %lu %s */\n", classBuf, kernelAddr, serviceBuf, refcount, refcount == 1 ? "reference" : "references");
     }
     else
     {
@@ -251,7 +251,7 @@ GDB_DECLARE_REMOTE_COMMAND_HANDLER(TranslateHandle)
             svcCloseHandle((u32)owner);
             sprintf(ownerBuf, " owner: %s", serviceBuf);
         }
-        n = sprintf(outbuf, "(%s *)0x%08x /* %u %s%s */\n", classBuf, kernelAddr, refcount, refcount == 1 ? "reference" : "references", ownerBuf);
+        n = sprintf(outbuf, "(%s *)0x%08lx /* %lu %s%s */\n", classBuf, kernelAddr, refcount, refcount == 1 ? "reference" : "references", ownerBuf);
     }
     
 end:
@@ -295,19 +295,19 @@ GDB_DECLARE_REMOTE_COMMAND_HANDLER(ListAllHandles)
     }
 
     if (R_FAILED(count = svcControlProcess(process, PROCESSOP_GET_ALL_HANDLES, (u32)procHandles, val)))
-        n = sprintf(outbuf, "An error occured: %08X\n", count);
+        n = sprintf(outbuf, "An error occured: %08lX\n", count);
     else if (count == 0)
         n = sprintf(outbuf, "Process has no handles ?\n");
     else
     {
-        n = sprintf(outbuf, "Found %d handles.\n", count);
+        n = sprintf(outbuf, "Found %ld handles.\n", count);
 
         const char *comma = "";
         for (s32 i = 0; i < count && n < (GDB_BUF_LEN >> 1) - 20; ++i)
         {
             Handle handle = procHandles[i];
 
-            n += sprintf(outbuf + n, "%s0x%08X", comma, handle);
+            n += sprintf(outbuf + n, "%s0x%08lX", comma, handle);
 
             if (((i + 1) % 8) == 0)
             {
