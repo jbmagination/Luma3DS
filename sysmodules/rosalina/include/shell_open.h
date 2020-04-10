@@ -1,6 +1,6 @@
 /*
 *   This file is part of Luma3DS
-*   Copyright (C) 2016-2019 Aurora Wright, TuxSH
+*   Copyright (C) 2016-2019 Aurora Wright, TuxSH, panicbit
 *
 *   This program is free software: you can redistribute it and/or modify
 *   it under the terms of the GNU General Public License as published by
@@ -24,24 +24,8 @@
 *         reasonable ways as different from the original version.
 */
 
-#pragma once
+#include <MyThread.h>
 
-#include "menu.h"
+MyThread *shellOpenCreateThread(void);
+void shellOpenThreadMain(void);
 
-extern Menu screenFiltersMenu;
-extern u16 screenFilterTemperature;
-extern bool screenFilterPersistence;
-
-typedef struct PACKED ALIGN(4)
-{
-    char magic[4];
-    u16 temperature;
-    bool persistence;
-} ScreenFilterConfig;
-
-void screenFiltersMenu_SetPersistence(void);
-void screenFiltersMenu_SetTemperature(void);
-void screenFiltersMenu_SaveSettings(void);
-void screenFiltersSetTemperature(int temperature);
-Result screenFiltersWriteConfigFile(ScreenFilterConfig* config);
-Result screenFiltersReadConfigFile(ScreenFilterConfig* config);
