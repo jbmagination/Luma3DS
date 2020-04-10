@@ -38,6 +38,7 @@
 #include "plgloader.h"
 #include "menus/debugger.h"
 #include "menus/screen_filters.h"
+#include "shell_open.h"
 
 #include "task_runner.h"
 
@@ -193,16 +194,27 @@ int main(void)
     if(R_FAILED(svcCreateEvent(&terminationRequestEvent, RESET_STICKY)))
         svcBreak(USERBREAK_ASSERT);
 
+    // Restore screen filter settings - persistence is opt-in due to possibility of breaking wake-up from sleep
+    ScreenFilterConfig screenFilterConfig;
+    screenFiltersReadConfigFile(&screenFilterConfig);
+    screenFilterTemperature = screenFilterConfig.temperature;
+    screenFilterPersistence = screenFilterConfig.persistence;
+
     MyThread *menuThread = menuCreateThread();
     MyThread *taskRunnerThread = taskRunnerCreateThread();
-    MyThread *plgloaderThread = PluginLoader__CreateThread();
+    MyThread *shellOpenThread = NULL;
+
+    if (screenFilterPersistence)
+        shellOpenThread = shellOpenCreateThread();
 
     if (R_FAILED(ServiceManager_Run(services, notifications, NULL)))
         svcBreak(USERBREAK_PANIC);
 
     MyThread_Join(menuThread, -1LL);
     MyThread_Join(taskRunnerThread, -1LL);
-    MyThread_Join(plgloaderThread, -1LL);
+
+    if (screenFilterPersistence)
+        MyThread_Join(shellOpenThread, -1LL);
 
     return 0;
 }
