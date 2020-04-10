@@ -202,6 +202,7 @@ int main(void)
 
     MyThread *menuThread = menuCreateThread();
     MyThread *taskRunnerThread = taskRunnerCreateThread();
+    MyThread *plgloaderThread = PluginLoader__CreateThread();
     MyThread *shellOpenThread = NULL;
 
     if (screenFilterPersistence)
@@ -212,6 +213,7 @@ int main(void)
 
     MyThread_Join(menuThread, -1LL);
     MyThread_Join(taskRunnerThread, -1LL);
+    MyThread_Join(plgloaderThread, -1LL);
 
     if (screenFilterPersistence)
         MyThread_Join(shellOpenThread, -1LL);
