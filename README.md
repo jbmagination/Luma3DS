@@ -13,6 +13,13 @@ We're implementing our own changes to it, with some extra features.
 
 ---
 
+## Extra features
+
+- Plugin loader (courtesy of mariohackandglitch, small fix from HIDE810)
+- Blue light filter changes (courtesy of {})
+
+---
+
 ## Compiling
 
 First you need to clone the repository with: `git clone https://github.com/jbmagination/Luma3DS.git`  
