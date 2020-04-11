@@ -32,7 +32,7 @@ See https://github.com/AuroraWright/Luma3DS/wiki
 ## Credits
 
 See https://github.com/AuroraWright/Luma3DS/wiki/Credits
-We also thank mariohackandglitch and Nanquitas for their original work. Me and HIDE810 are continuing it.
+We also thank mariohackandglitch and Nanquitas for their original work. We are continuing it.
 
 ---
 
