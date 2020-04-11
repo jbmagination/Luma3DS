@@ -9,7 +9,7 @@ To use it, you will need a console capable of running homebrew software on the A
 
 Since Luma3DS v8.0, Luma3DS has its own in-game menu, triggerable by `L+Down+Select` (see the [release notes](https://github.com/AuroraWright/Luma3DS/releases/tag/v8.0)).
 
-We're implementing our own changes to it, with some plugin loader fixes.
+We're implementing our own changes to it, with some extra features.
 
 ---
 
