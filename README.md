@@ -22,12 +22,18 @@ I'm hoping to add streaming capabilities from Byebyesky's fork but I'm gonna hol
 
 ---
 
-## Compiling
-
-First you need to clone the repository with: `git clone https://github.com/jbmagination/Luma3DS.git`  
-To compile, you'll need a recent commit of [makerom](https://github.com/profi200/Project_CTR) added to your PATH. You'll also need to install [firmtool](https://github.com/TuxSH/firmtool), its README contains installation instructions.
-You'll also need to update your libctru and devkitARM installation to their latest releases.
-Then, run `make`.
+### Compiling
+* Prerequisites
+    1. git | Download [here](https://git-scm.com)
+    2. [makerom](https://github.com/jakcron/Project_CTR) | Compiled version for latest release is available [here](https://github.com/jbmagination/Luma3DS/releases/tag/compile)
+    3. [firmtool](https://github.com/TuxSH/firmtool) | Compiled version for latest release is available [here](https://github.com/jbmagination/Luma3DS/releases/tag/compile)
+    4. Up-to-date devkitARM+libctru | Requires [devkitPro pacman](https://devkitpro.org/wiki/devkitPro_pacman) with the `3ds-dev` group of packages installed
+  
+Make sure everything is added to your PATH.
+    
+1. Clone the repository with `git clone https://github.com/jbmagination/Luma3DS.git`
+2. Run `make`
+    
 The produced file is called `boot.firm` and is meant to be copied to the root of your SD card, for usage with boot9strap.
 
 ---
