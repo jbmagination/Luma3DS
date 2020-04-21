@@ -44,11 +44,6 @@ static inline int ERRF_FormatRegisterValue(char *out, const char *name, u32 valu
     return sprintf(out, "%-9s %08lx", name, value);
 }
 
-static inline void ERRF_GetErrInfo(ERRF_FatalErrInfo* info, u32* in, u32 size)
-{
-    memcpy(info, in, size);
-}
-
 static int ERRF_FormatError(char *out, ERRF_FatalErrInfo *info)
 {
     char *outStart = out;
@@ -153,7 +148,7 @@ static int ERRF_FormatError(char *out, ERRF_FatalErrInfo *info)
             desc = "The System Memory has been damaged.";
             break;
         case ERRF_ERRTYPE_FAILURE:
-            info->data.failure_mesg[0x5F] = 0; // make sure the last byte in the IPC buffer is NULL
+            info->data.failure_mesg[0x60] = 0; // make sure the last byte in the IPC buffer is NULL
             desc = info->data.failure_mesg;
             break;
         default:
@@ -228,15 +223,14 @@ void ERRF_HandleCommands(void *ctx)
 {
     (void)ctx;
     u32 *cmdbuf = getThreadCommandBuffer();
-    ERRF_FatalErrInfo info;
 
     switch(cmdbuf[0] >> 16)
     {
         case 1: // Throw
         {
-            ERRF_GetErrInfo(&info, (cmdbuf + 1), sizeof(ERRF_FatalErrInfo));
-            ERRF_SaveErrorToFile(&info);
-            if(info.type != ERRF_ERRTYPE_LOGGED || info.procId == 0)
+            ERRF_FatalErrInfo *info = (ERRF_FatalErrInfo *)(cmdbuf + 1);
+            ERRF_SaveErrorToFile(info);
+            if(info->type != ERRF_ERRTYPE_LOGGED || info->procId == 0)
             {
                 menuEnter();
 
@@ -244,7 +238,7 @@ void ERRF_HandleCommands(void *ctx)
                 Draw_ClearFramebuffer();
                 Draw_FlushFramebuffer();
 
-                ERRF_DisplayError(&info);
+                ERRF_DisplayError(info);
 
                 /*
                 If we ever wanted to return:
@@ -273,7 +267,7 @@ void ERRF_HandleCommands(void *ctx)
             else
             {
                 cmdbuf[0] = 0x20040;
-                u32 sz = cmdbuf[1] <= 0x100 ? cmdbuf[1] : 0x100;
+                u32 sz = cmdbuf[1] <= 0x100 ? sz : 0x100;
                 memcpy(userString, cmdbuf + 3, sz);
                 userString[sz] = 0;
             }

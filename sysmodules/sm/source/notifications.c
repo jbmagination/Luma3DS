@@ -109,7 +109,7 @@ Result ReceiveNotification(SessionData *sessionData, u32 *notificationId)
 
     if(processData == NULL || !processData->notificationEnabled || processData->nbPendingNotifications == 0)
     {
-        if(processData != NULL && processData->nbPendingNotifications)
+        if(processData->nbPendingNotifications)
             *notificationId = 0;
         return 0xD8806404;
     }
