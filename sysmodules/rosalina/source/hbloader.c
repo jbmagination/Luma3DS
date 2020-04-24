@@ -111,7 +111,7 @@ static const u64 dependencyList[] =
 
 static const u32 kernelCaps[] =
 {
-    0xFC00022C, // Kernel release version: 8.0 (necessary for using the new linear mapping)
+    0xFC00022C, // Kernel release version 8.0 is necessary for using the new linear mapping. Modified below.
     0xFF81FF50, // RW static mapping: 0x1FF50000
     0xFF81FF58, // RW static mapping: 0x1FF58000
     0xFF81FF70, // RW static mapping: 0x1FF70000
@@ -122,7 +122,19 @@ static const u32 kernelCaps[] =
     0xFE000200, // Handle table size: 0x200
 };
 
+static inline void assertSuccess(Result res)
+{
+    if(R_FAILED(res))
+        svcBreak(USERBREAK_PANIC);
+}
+
 static u16 hbldrTarget[PATH_MAX+1];
+
+static inline void error(u32* cmdbuf, Result rc)
+{
+    cmdbuf[0] = IPC_MakeHeader(0, 1, 0);
+    cmdbuf[1] = rc;
+}
 
 static u16 *u16_strncpy(u16 *dest, const u16 *src, u32 size)
 {
@@ -282,6 +294,9 @@ void HBLDR_HandleCommands(void *ctx)
             ExHeader_Arm11KernelCapabilities* kcaps0 = &exhi->aci.kernel_caps;
             memset(kcaps0->descriptors, 0xFF, sizeof(kcaps0->descriptors));
             memcpy(kcaps0->descriptors, kernelCaps, sizeof(kernelCaps));
+
+            // Set kernel release version to the current kernel version
+            kcaps0->descriptors[0] = 0xFC000000 | (osGetKernelVersion() >> 16);
 
             u64 lastdep = sizeof(dependencyList)/8;
             if (osGetFirmVersion() >= SYSTEM_VERSION(2,50,0)) // 9.6+ FIRM

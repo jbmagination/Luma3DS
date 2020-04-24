@@ -151,7 +151,7 @@ void screenFiltersMenu_SetTemperature()
     Draw_Unlock();
 
     const unsigned int MAX_COLOR_TEMPERATURE = 6500;
-    const unsigned int MIN_COLOR_TEMPERATURE = 1200;
+    const unsigned int MIN_COLOR_TEMPERATURE = 2000;
     const unsigned int INCREMENT_AMOUNT = 500;
 
     do
@@ -167,7 +167,7 @@ void screenFiltersMenu_SetTemperature()
         Draw_FlushFramebuffer();
         Draw_Unlock();
 
-        u32 pressed = waitInputWithTimeout(500);
+        u32 pressed = waitInputWithTimeout(1000);
 
         if(pressed & BUTTON_UP)
         {

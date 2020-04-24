@@ -232,8 +232,8 @@ static void ProcessListMenu_MemoryViewer(const ProcessInfo *info)
         svcQueryProcessMemory(&mem, &out, processHandle, heapStartAddress);
         heapTotalSize = mem.size;
 
-        Result codeRes = svcMapProcessMemoryEx(CUR_PROCESS_HANDLE, codeDestAddress, processHandle, codeStartAddress, codeTotalSize);
-        Result heapRes = svcMapProcessMemoryEx(CUR_PROCESS_HANDLE, heapDestAddress, processHandle, heapStartAddress, heapTotalSize);
+        Result codeRes = svcMapProcessMemoryEx(processHandle, codeDestAddress, codeStartAddress, codeTotalSize);
+        Result heapRes = svcMapProcessMemoryEx(processHandle, heapDestAddress, heapStartAddress, heapTotalSize);
 
         bool codeAvailable = R_SUCCEEDED(codeRes);
         bool heapAvailable = R_SUCCEEDED(heapRes);
@@ -574,9 +574,9 @@ static void ProcessListMenu_MemoryViewer(const ProcessInfo *info)
         }
 
         if(codeAvailable)
-            svcUnmapProcessMemoryEx(CUR_PROCESS_HANDLE, codeDestAddress, codeTotalSize);
+            svcUnmapProcessMemoryEx(processHandle, codeDestAddress, codeTotalSize);
         if(heapAvailable)
-            svcUnmapProcessMemoryEx(CUR_PROCESS_HANDLE, heapDestAddress, heapTotalSize);
+            svcUnmapProcessMemoryEx(processHandle, heapDestAddress, heapTotalSize);
 
         svcCloseHandle(processHandle);
     }
