@@ -161,7 +161,7 @@ void screenFiltersMenu_SetTemperature()
 
         Draw_DrawString(10, 10, COLOR_TITLE, "Screen filters menu");
         Draw_DrawString(10, 30, COLOR_WHITE, "Press UP to increase color temperature");
-        Draw_DrawString(10, 40, COLOR_WHITE, "Press DOWN to increase color temperature");
+        Draw_DrawString(10, 40, COLOR_WHITE, "Press DOWN to decrease color temperature");
         Draw_DrawString(10, 50, COLOR_WHITE, "Press B to go back");
         Draw_DrawFormattedString(10, 60, COLOR_WHITE, "Current temperature: %dK", screenFilterTemperature);
 
