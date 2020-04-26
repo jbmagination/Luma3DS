@@ -195,8 +195,8 @@ int main(void)
 
     if(R_FAILED(svcCreateEvent(&terminationRequestEvent, RESET_STICKY)))
         svcBreak(USERBREAK_ASSERT);
-	
-	// Restore screen filter settings - persistence is opt-in due to possibility of breaking wake-up from sleep
+
+    // Restore screen filter settings - persistence is opt-in due to possibility of breaking wake-up from sleep
     ScreenFilterConfig screenFilterConfig;
     screenFiltersReadConfigFile(&screenFilterConfig);
     screenFilterTemperature = screenFilterConfig.temperature;
@@ -205,7 +205,10 @@ int main(void)
     MyThread *menuThread = menuCreateThread();
     MyThread *taskRunnerThread = taskRunnerCreateThread();
     MyThread *errDispThread = errDispCreateThread();
-	MyThread *shellOpenThread = NULL;
+    MyThread *shellOpenThread = NULL;
+
+    if (screenFilterPersistence)
+        shellOpenThread = shellOpenCreateThread();
 
     if (R_FAILED(ServiceManager_Run(services, notifications, NULL)))
         svcBreak(USERBREAK_PANIC);
@@ -213,8 +216,8 @@ int main(void)
     MyThread_Join(menuThread, -1LL);
     MyThread_Join(taskRunnerThread, -1LL);
     MyThread_Join(errDispThread, -1LL);
-	
-	if (screenFilterPersistence)
+
+    if (screenFilterPersistence)
         MyThread_Join(shellOpenThread, -1LL);
 
     return 0;
