@@ -40,13 +40,13 @@ The produced file is called `boot.firm` and is meant to be copied to the root of
 
 ## Setup / Usage / Features
 
-See https://github.com/AuroraWright/Luma3DS/wiki
+See https://github.com/LumaTeam/Luma3DS/wiki
 
 ---
 
 ## Credits
 
-See https://github.com/AuroraWright/Luma3DS/wiki/Credits
+See https://github.com/LumaTeam/Luma3DS/wiki/Credits
 
 ---
 
