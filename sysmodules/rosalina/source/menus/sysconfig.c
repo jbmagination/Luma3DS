@@ -1,6 +1,6 @@
 /*
 *   This file is part of Luma3DS
-*   Copyright (C) 2016-2019 Aurora Wright, TuxSH
+*   Copyright (C) 2016-2020 Aurora Wright, TuxSH
 *
 *   This program is free software: you can redistribute it and/or modify
 *   it under the terms of the GNU General Public License as published by
@@ -34,13 +34,16 @@
 
 Menu sysconfigMenu = {
     "System configuration menu",
-    .nbItems = 3,
+    .nbItems = 4,
     {
         { "Toggle LEDs", METHOD, .method = &SysConfigMenu_ToggleLEDs },
         { "Toggle Wireless", METHOD, .method = &SysConfigMenu_ToggleWireless },
+        { "Toggle Power Button", METHOD, .method=&SysConfigMenu_TogglePowerButton },
         { "Control Wireless connection", METHOD, .method = &SysConfigMenu_ControlWifi },
     }
 };
+
+bool isConnectionForced = false;
 
 void SysConfigMenu_ToggleLEDs(void)
 {
@@ -148,9 +151,29 @@ void SysConfigMenu_ToggleWireless(void)
     while(!terminationRequest);
 }
 
-static void SysConfigMenu_ForceWifiConnection(int slot)
+void SysConfigMenu_UpdateStatus(bool control)
+{
+    MenuItem *item = &sysconfigMenu.items[3];
+
+    if(control)
+    {
+        item->title = "Control Wireless connection";
+        item->method = &SysConfigMenu_ControlWifi;
+    }
+    else
+    {
+        item->title = "Disable forced wireless connection";
+        item->method = &SysConfigMenu_DisableForcedWifiConnection;
+    }
+}
+
+static bool SysConfigMenu_ForceWifiConnection(int slot)
 {
     char ssid[0x20 + 1] = {0};
+    isConnectionForced = false;
+
+    if(R_FAILED(acInit()))
+        return false;
 
     acuConfig config = {0};
     ACU_CreateDefaultConfig(&config);
@@ -164,13 +187,18 @@ static void SysConfigMenu_ForceWifiConnection(int slot)
     bool forcedConnection = false;
     if(R_SUCCEEDED(ACU_ConnectAsync(&config, connectEvent)))
     {
-        if(R_SUCCEEDED(svcWaitSynchronization(connectEvent, -1)))
-        {
-            ACU_GetSSID(ssid);
+        if(R_SUCCEEDED(svcWaitSynchronization(connectEvent, -1)) && R_SUCCEEDED(ACU_GetSSID(ssid)))
             forcedConnection = true;
-        }
     }
     svcCloseHandle(connectEvent);
+
+    if(forcedConnection)
+    {
+        isConnectionForced = true;
+        SysConfigMenu_UpdateStatus(false);
+    }
+    else
+        acExit();
 
     char infoString[80] = {0};
     u32 infoStringColor = forcedConnection ? COLOR_GREEN : COLOR_RED;
@@ -197,6 +225,49 @@ static void SysConfigMenu_ForceWifiConnection(int slot)
         u32 pressed = waitInputWithTimeout(1000);
 
         if(pressed & BUTTON_B)
+            break;
+    }
+    while(!terminationRequest);
+
+    return forcedConnection;
+}
+
+void SysConfigMenu_TogglePowerButton(void)
+{
+    u32 mcuIRQMask;
+
+    Draw_Lock();
+    Draw_ClearFramebuffer();
+    Draw_FlushFramebuffer();
+    Draw_Unlock();
+
+    mcuHwcInit();
+    MCUHWC_ReadRegister(0x18, (u8*)&mcuIRQMask, 4);
+    mcuHwcExit();
+
+    do
+    {
+        Draw_Lock();
+        Draw_DrawString(10, 10, COLOR_TITLE, "System configuration menu");
+        Draw_DrawString(10, 30, COLOR_WHITE, "Press A to toggle, press B to go back.");
+
+        Draw_DrawString(10, 50, COLOR_WHITE, "Current status:");
+        Draw_DrawString(100, 50, (((mcuIRQMask & 0x00000001) == 0x00000001) ? COLOR_RED : COLOR_GREEN), (((mcuIRQMask & 0x00000001) == 0x00000001) ? " DISABLED" : " ENABLED "));
+
+        Draw_FlushFramebuffer();
+        Draw_Unlock();
+
+        u32 pressed = waitInputWithTimeout(1000);
+
+        if(pressed & BUTTON_A)
+        {
+            mcuHwcInit();
+            MCUHWC_ReadRegister(0x18, (u8*)&mcuIRQMask, 4);
+            mcuIRQMask ^= 0x00000001;
+            MCUHWC_WriteRegister(0x18, (u8*)&mcuIRQMask, 4);
+            mcuHwcExit();
+        }
+        else if(pressed & BUTTON_B)
             return;
     }
     while(!terminationRequest);
@@ -227,7 +298,11 @@ void SysConfigMenu_ControlWifi(void)
 
         if(pressed & BUTTON_A)
         {
-            SysConfigMenu_ForceWifiConnection(slot);
+            if(SysConfigMenu_ForceWifiConnection(slot))
+            {
+                // Connection successfully forced, return from this menu to prevent ac handle refcount leakage.
+                break;
+            }
 
             Draw_Lock();
             Draw_ClearFramebuffer();
@@ -255,6 +330,29 @@ void SysConfigMenu_ControlWifi(void)
             slotString[(slot * 4) + 2] = '<';
         }
         else if(pressed & BUTTON_B)
+            return;
+    }
+    while(!terminationRequest);
+}
+
+void SysConfigMenu_DisableForcedWifiConnection(void)
+{
+    Draw_Lock();
+    Draw_ClearFramebuffer();
+    Draw_FlushFramebuffer();
+    Draw_Unlock();
+
+    acExit();
+    SysConfigMenu_UpdateStatus(true);
+
+    do
+    {
+        Draw_Lock();
+        Draw_DrawString(10, 10, COLOR_TITLE, "System configuration menu");
+        Draw_DrawString(10, 30, COLOR_WHITE, "Forced connection successfully disabled.\nNote: auto-connection may remain broken.");
+
+        u32 pressed = waitInputWithTimeout(1000);
+        if(pressed & BUTTON_B)
             return;
     }
     while(!terminationRequest);

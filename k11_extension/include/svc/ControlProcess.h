@@ -12,7 +12,7 @@ typedef enum ProcessOp
     PROCESSOP_SET_MMU_TO_RWX,   ///< Set the whole memory of the process with rwx access
                                 ///< svcControlProcess(handle, PROCESSOP_SET_MMU_TO_RWX, 0, 0)
     PROCESSOP_GET_ON_MEMORY_CHANGE_EVENT,
-    PROCESSOP_GET_ON_EXIT_EVENT,
+    PROCESSOP_SIGNAL_ON_EXIT,
     PROCESSOP_GET_PA_FROM_VA,   ///< Get the physical address of the va within the process
                                 ///< svcControlProcess(handle, PROCESSOP_GET_PA_FROM_VA, (u32)&outPa, va)
     PROCESSOP_SCHEDULE_THREADS,

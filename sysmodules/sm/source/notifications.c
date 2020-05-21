@@ -1,7 +1,7 @@
 /*
 notifications.c
 
-(c) TuxSH, 2017
+(c) TuxSH, 2017-2020
 This is part of 3ds_sm, which is licensed under the MIT license (see LICENSE for details).
 */
 
@@ -17,14 +17,6 @@ static bool doPublishNotification(ProcessData *processData, u32 notificationId, 
             if(processData->pendingNotifications[(processData->receivedNotificationIndex + i) % 16] == notificationId)
                 return true;
         }
-    }
-
-    // Handle special case for home button notifications on Mode3 O3DS with plugin loaded
-    if ((notificationId == 0x204 || notificationId == 0x205)
-       && *(u32 *)0x1FF80030 == 3 && *(u32 *)0x1FF800F0)
-    {
-        svcKernelSetState(0x10007, 1);
-        return true;
     }
 
     if(processData->nbPendingNotifications < 0x10)

@@ -1,6 +1,6 @@
 /*
 *   This file is part of Luma3DS.
-*   Copyright (C) 2016-2019 Aurora Wright, TuxSH
+*   Copyright (C) 2016-2020 Aurora Wright, TuxSH
 *
 *   SPDX-License-Identifier: (MIT OR GPL-2.0-or-later)
 */
@@ -21,5 +21,6 @@ GDB_DECLARE_REMOTE_COMMAND_HANDLER(GetMemRegions);
 GDB_DECLARE_REMOTE_COMMAND_HANDLER(FlushCaches);
 GDB_DECLARE_REMOTE_COMMAND_HANDLER(ToggleExternalMemoryAccess);
 GDB_DECLARE_REMOTE_COMMAND_HANDLER(CatchSvc);
+GDB_DECLARE_REMOTE_COMMAND_HANDLER(GetThreadPriority);
 
 GDB_DECLARE_QUERY_HANDLER(Rcmd);

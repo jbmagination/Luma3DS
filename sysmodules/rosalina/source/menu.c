@@ -1,6 +1,6 @@
 /*
 *   This file is part of Luma3DS
-*   Copyright (C) 2016-2019 Aurora Wright, TuxSH
+*   Copyright (C) 2016-2020 Aurora Wright, TuxSH
 *
 *   This program is free software: you can redistribute it and/or modify
 *   it under the terms of the GNU General Public License as published by
@@ -32,10 +32,10 @@
 #include "ifile.h"
 #include "menus.h"
 #include "utils.h"
-#include "plgloader.h"
 #include "menus/n3ds.h"
 #include "menus/cheats.h"
 #include "minisoc.h"
+#include "plugin.h"
 
 u32 waitInputWithTimeout(u32 msec)
 {
@@ -126,20 +126,20 @@ u32 waitCombo(void)
 }
 
 static MyThread menuThread;
-static u8 ALIGN(8) menuThreadStack[0x3000];
+static u8 ALIGN(8) menuThreadStack[0x1000];
 static u8 batteryLevel = 255;
 static u32 homeBtnPressed = 0;
 
 MyThread *menuCreateThread(void)
 {
-    svcKernelSetState(0x10007, &homeBtnPressed);
-    if(R_FAILED(MyThread_Create(&menuThread, menuThreadMain, menuThreadStack, 0x3000, 52, CORE_SYSTEM)))
+    if(R_FAILED(MyThread_Create(&menuThread, menuThreadMain, menuThreadStack, 0x1000, 52, CORE_SYSTEM)))
         svcBreak(USERBREAK_PANIC);
     return &menuThread;
 }
 
 extern bool isN3DS;
 u32 menuCombo;
+u32 blockMenuOpen = 0;
 
 u32     DispWarningOnHome(void);
 
@@ -155,10 +155,12 @@ void    menuThreadMain(void)
         N3DSMenu_UpdateStatus();
 
     bool isAcURegistered = false;
+	
+	u32* blockMenuOpenPys = (u32*)(svcConvertVAToPA(&blockMenuOpen, false) | (1 << 31));
 
     while(!terminationRequest)
     {
-        if((HID_PAD & menuCombo) == menuCombo)
+        if((HID_PAD & menuCombo) == menuCombo && !*blockMenuOpenPys)
         {
             if (!isAcURegistered)
                 isAcURegistered = R_SUCCEEDED(srvIsServiceRegistered(&isAcURegistered, "ac:u"))
@@ -261,7 +263,7 @@ static void menuDraw(Menu *menu, u32 selected)
     if(miniSocEnabled)
     {
         char ipBuffer[17];
-        u32 ip = gethostid();
+        u32 ip = socGethostid();
         u8 *addr = (u8 *)&ip;
         int n = sprintf(ipBuffer, "%hhu.%hhu.%hhu.%hhu", addr[0], addr[1], addr[2], addr[3]);
         Draw_DrawString(SCREEN_BOT_WIDTH - 10 - SPACING_X * n, 10, COLOR_WHITE, ipBuffer);
@@ -357,159 +359,4 @@ void menuShow(Menu *root)
         Draw_Unlock();
     }
     while(!terminationRequest);
-}
-
-static const char *__press_b_to_close = "Press [B] to close";
-
-void    DispMessage(const char *title, const char *message)
-{
-    menuEnter();
-
-    Draw_Lock();
-    Draw_ClearFramebuffer();
-    Draw_FlushFramebuffer();
-
-    Draw_DrawString(10, 10, COLOR_TITLE, title);
-
-    Draw_DrawString(30, 30, COLOR_WHITE, message);
-    Draw_DrawString(200, 220, COLOR_TITLE, __press_b_to_close);
-
-
-    u32 keys = 0;
-
-    do
-    {
-        keys = waitComboWithTimeout(1000);
-    }while (!terminationRequest && !(keys & BUTTON_B));
-
-    Draw_Unlock(); ///< Keep it locked until we exit the message
-    menuLeave();
-}
-
-u32    DispErrMessage(const char *title, const char *message, const Result error)
-{
-    char buf[100];
-
-    sprintf(buf, "Error code: 0x%08X", (unsigned int)error);
-    menuEnter();
-
-    Draw_Lock();
-    Draw_ClearFramebuffer();
-    Draw_FlushFramebuffer();
-
-    Draw_DrawString(10, 10, COLOR_TITLE, title);
-
-    u32 posY = Draw_DrawString(30, 30, COLOR_WHITE, message);
-    Draw_DrawString(30, posY + 20, COLOR_RED, buf);
-    Draw_DrawString(200, 220, COLOR_TITLE, __press_b_to_close);
-
-    u32 keys = 0;
-
-    do
-    {
-        keys = waitComboWithTimeout(1000);
-    }while (!terminationRequest && !(keys & BUTTON_B));
-
-    Draw_Unlock();  ///< Keep it locked until we exit the message
-    menuLeave();
-    return error;
-}
-
-u32     DispWarningOnHome(void)
-{
-    menuEnter();
-
-    Draw_Lock();
-    Draw_ClearFramebuffer();
-    Draw_FlushFramebuffer();
-
-    Draw_DrawString(10, 10, COLOR_TITLE, "Warning");
-
-    u32 posY = Draw_DrawString(30, 40, COLOR_WHITE, "Due to memory shortage the home button\nis disabled.");
-    Draw_DrawString(30, posY + 20, COLOR_WHITE, "Press [DPAD UP + B] to exit the application.");
-    Draw_DrawString(200, 220, COLOR_TITLE, __press_b_to_close);
-
-
-    u32 keys = 0;
-
-    do
-    {
-        keys = waitComboWithTimeout(1000);
-    }while (!terminationRequest && !(keys & BUTTON_B));
-
-    Draw_Unlock(); ///< Keep it locked until we exit the message
-    menuLeave();
-
-    return (keys & BUTTON_UP) > 0;
-}
-
-
-typedef char string[50];
-#define MIN(a, b) ((a) < (b) ? (a) : (b))
-#define MAX(a, b) ((a) > (b) ? (a) : (b))
-
-void    DisplayPluginMenu(u32   *cmdbuf)
-{
-    u32             cursor = 0;
-    u32             nbItems = cmdbuf[1];
-    u8              *states = (u8 *)cmdbuf[3];
-    char            buffer[60];
-    const char      *title = (const char *)cmdbuf[5];
-    const string    *items = (const string *)cmdbuf[7];
-    const string    *hints = (const string *)cmdbuf[9];
-
-    menuEnter();
-    Draw_Lock();
-
-    do
-    {
-        // Draw the menu
-        {
-            // Clear screen
-            Draw_ClearFramebuffer();
-            Draw_FlushFramebuffer();
-
-            // Draw title
-            Draw_DrawString(10, 10, COLOR_TITLE, title);
-
-            // Draw items
-            u32 i = MAX(0, (int)cursor - 7);
-            u32 end = MIN(nbItems, i + 16);
-            u32 posY = 30;
-
-            for (; i < end; ++i, posY += 10)
-            {
-                sprintf(buffer, "[ ] %s", items[i]);
-                Draw_DrawString(30, posY, COLOR_WHITE, buffer);
-
-                if (i == cursor) Draw_DrawCharacter(10, posY, COLOR_TITLE, '>');
-                if (states[i]) Draw_DrawCharacter(36, posY, COLOR_LIME, 'x');
-            }
-
-            // Draw hint
-            if (hints[cursor])
-                Draw_DrawString(10, 200, COLOR_TITLE, hints[cursor]);
-        }
-
-        // Wait for input
-        u32 pressed = waitInput();
-
-        if (pressed & BUTTON_A)
-            states[cursor] = !states[cursor];
-
-        if (pressed & BUTTON_B)
-            break;
-
-        if (pressed & BUTTON_DOWN)
-            if (++cursor >= nbItems)
-                cursor = 0;
-
-        if (pressed & BUTTON_UP)
-            if (--cursor >= nbItems)
-                cursor = nbItems - 1;
-
-    } while (true);
-
-    Draw_Unlock();
-    menuLeave();
 }

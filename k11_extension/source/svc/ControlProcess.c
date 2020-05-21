@@ -5,8 +5,29 @@
 
 typedef bool (*ThreadPredicate)(KThread *thread);
 
-void    rosalinaLockThread(KThread *thread);
-void    rosalinaRescheduleThread(KThread *thread, bool lock);
+// Lock bit has to be different from Rosalina to avoid unintended unlock when using Rosalina menu
+static void rescheduleThread(KThread *thread, bool lock)
+{
+    KRecursiveLock__Lock(criticalSectionLock);
+
+    u32 oldSchedulingMask = thread->schedulingMask;
+    if(lock)
+        thread->schedulingMask |= 0x20;
+    else
+        thread->schedulingMask &= ~0x20;
+
+    KScheduler__AdjustThread(currentCoreContext->objectContext.currentScheduler, thread, oldSchedulingMask);
+
+    KRecursiveLock__Unlock(criticalSectionLock);
+}
+
+static void lockThread(KThread *thread)
+{
+    KThread *syncThread = synchronizationMutex->owner;
+
+    if(syncThread == NULL || syncThread != thread)
+        rescheduleThread(thread, true);
+}
 
 Result  ControlProcess(Handle processHandle, ProcessOp op, u32 varg2, u32 varg3)
 {
@@ -84,44 +105,15 @@ Result  ControlProcess(Handle processHandle, ProcessOp op, u32 varg2, u32 varg3)
                 KAutoObject * event = KProcessHandleTable__ToKAutoObject(handleTable, *onMemoryLayoutChangeEvent);
 
                 createHandleForThisProcess((Handle *)varg2, event);
-                ((KAutoObject *)event)->vtable->DecrementReferenceCount((KAutoObject *)event);  ///< This avoid an extra operation on process exit
-                                                                                                ///< Closing the handle in the handle table will destroy the event
+                ((KAutoObject *)event)->vtable->DecrementReferenceCount((KAutoObject *)event);
             }
 
             break;
         }
 
-        case PROCESSOP_GET_ON_EXIT_EVENT:
+        case PROCESSOP_SIGNAL_ON_EXIT:
         {
-            // Only accept current process for this command
-            if (process != currentCoreContext->objectContext.currentProcess)
-            {
-                res = 0xD8E007F7; // invalid handle
-                break;
-            }
-
-            Handle  *onProcessExitEvent = KPROCESS_GET_PTR(process, onProcessExitEvent);
-            Handle  *resumeProcessExitEvent = KPROCESS_GET_PTR(process, resumeProcessExitEvent);
-
-            if (*onProcessExitEvent == 0)
-                res = CreateEvent(onProcessExitEvent, RESET_ONESHOT);
-            if (*resumeProcessExitEvent == 0)
-                res |= CreateEvent(resumeProcessExitEvent, RESET_ONESHOT);
-
-            if (res >= 0)
-            {
-                *KPROCESS_GET_PTR(process, customFlags) |= SignalOnExit;
-                KAutoObject * event = KProcessHandleTable__ToKAutoObject(handleTable, *onProcessExitEvent);
-
-                createHandleForThisProcess((Handle *)varg2, event);
-                ((KAutoObject *)event)->vtable->DecrementReferenceCount((KAutoObject *)event); ///< See higher
-
-                event = KProcessHandleTable__ToKAutoObject(handleTable, *resumeProcessExitEvent);
-
-                createHandleForThisProcess((Handle *)varg3, event);
-                ((KAutoObject *)event)->vtable->DecrementReferenceCount((KAutoObject *)event); ///< See higher
-            }
-
+            *KPROCESS_GET_PTR(process, customFlags) |= SignalOnExit;
             break;
         }
         case PROCESSOP_GET_PA_FROM_VA:
@@ -144,15 +136,16 @@ Result  ControlProcess(Handle processHandle, ProcessOp op, u32 varg2, u32 varg3)
 
             if (varg2 == 0) // Unlock
             {
-                for(KLinkedListNode *node = threadList->list.nodes.first; node != (KLinkedListNode *)&threadList->list.nodes; node = node->next)
+                for (KLinkedListNode *node = threadList->list.nodes.first; node != (KLinkedListNode *)&threadList->list.nodes; node = node->next)
                 {
                     KThread *thread = (KThread *)node->key;
 
-                    if((thread->schedulingMask & 0xF) == 2) // thread is terminating
+                    if ((thread->schedulingMask & 0xF) == 2) // thread is terminating
                         continue;
 
-                    if(thread->schedulingMask & 0x40)
-                        rosalinaRescheduleThread(thread, false);
+                    if (thread->ownerProcess == process && (thread->schedulingMask & 0x20)
+                       && (threadPredicate == NULL || threadPredicate(thread)))
+                        rescheduleThread(thread, false);
                 }
             }
             else // Lock
@@ -170,7 +163,7 @@ Result  ControlProcess(Handle processHandle, ProcessOp op, u32 varg2, u32 varg3)
                     if(thread == coreCtxs[thread->coreId].objectContext.currentThread)
                         currentThreadsFound = true;
                     else
-                        rosalinaLockThread(thread);
+                        lockThread(thread);
                 }
 
                 if(currentThreadsFound)
@@ -183,9 +176,9 @@ Result  ControlProcess(Handle processHandle, ProcessOp op, u32 varg2, u32 varg3)
                            || (threadPredicate != NULL && !threadPredicate(thread)))
                             continue;
 
-                        if(!(thread->schedulingMask & 0x40))
+                        if(!(thread->schedulingMask & 0x20))
                         {
-                            rosalinaLockThread(thread);
+                            lockThread(thread);
                             KRecursiveLock__Lock(criticalSectionLock);
                             if(thread->coreId != getCurrentCoreID())
                             {

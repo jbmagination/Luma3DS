@@ -1,6 +1,6 @@
 /*
 *   This file is part of Luma3DS
-*   Copyright (C) 2016-2019 Aurora Wright, TuxSH
+*   Copyright (C) 2016-2020 Aurora Wright, TuxSH
 *
 *   This program is free software: you can redistribute it and/or modify
 *   it under the terms of the GNU General Public License as published by
@@ -30,8 +30,6 @@
 Result UnmapProcessMemoryEx(Handle processHandle, void *dst, u32 size)
 {
     Result          res = 0;
-    u32             sizeInPage = size >> 12;
-    KLinkedList     list;
     KProcess        *process;
     KProcessHwInfo  *hwInfo;
     KProcessHandleTable *handleTable = handleTableOfProcess(currentCoreContext->objectContext.currentProcess);
@@ -49,20 +47,7 @@ Result UnmapProcessMemoryEx(Handle processHandle, void *dst, u32 size)
 
     hwInfo = hwInfoOfProcess(process);
 
-    KLinkedList__Initialize(&list);
-
-    res = KProcessHwInfo__GetListOfKBlockInfoForVA(hwInfo, &list, (u32)dst, sizeInPage);
-
-    if (res >= 0)
-    {
-        // Check for dst address to be in the right state (0x5806 as we set it with svcMapProcessMemoryEx)
-        res = KProcessHwInfo__CheckVaState(hwInfo, (u32)dst, size, 0x5806, 0);
-        if (res == 0)
-            res = KProcessHwInfo__MapListOfKBlockInfo(hwInfo, (u32)dst, &list, 0, 0, 0);
-    }
-
-    KLinkedList_KBlockInfo__Clear(&list);
-
+    res = KProcessHwInfo__UnmapProcessMemory(hwInfo, dst, size >> 12);
 
     ((KAutoObject *)process)->vtable->DecrementReferenceCount((KAutoObject *)process);
 

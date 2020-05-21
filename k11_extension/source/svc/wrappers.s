@@ -1,5 +1,5 @@
 @   This file is part of Luma3DS
-@   Copyright (C) 2016-2019 Aurora Wright, TuxSH
+@   Copyright (C) 2016-2020 Aurora Wright, TuxSH
 @
 @   This program is free software: you can redistribute it and/or modify
 @   it under the terms of the GNU General Public License as published by
@@ -83,6 +83,15 @@ ControlMemoryEx:
     blx r12
     ldr r1, [sp, #12]
     add sp, #20
+    pop {pc}
+
+.global ControlMemoryUnsafeWrapper
+.type   ControlMemoryUnsafeWrapper, %function
+ControlMemoryUnsafeWrapper:
+    push {lr}
+    str r4, [sp, #-4]!
+    bl ControlMemoryUnsafe
+    add sp, #4
     pop {pc}
 
 .global MapProcessMemoryExWrapper

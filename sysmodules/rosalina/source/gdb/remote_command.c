@@ -1,6 +1,6 @@
 /*
 *   This file is part of Luma3DS.
-*   Copyright (C) 2016-2019 Aurora Wright, TuxSH
+*   Copyright (C) 2016-2020 Aurora Wright, TuxSH
 *
 *   SPDX-License-Identifier: (MIT OR GPL-2.0-or-later)
 */
@@ -27,6 +27,7 @@ struct
     { "flushcaches"       , GDB_REMOTE_COMMAND_HANDLER(FlushCaches) },
     { "toggleextmemaccess", GDB_REMOTE_COMMAND_HANDLER(ToggleExternalMemoryAccess) },
     { "catchsvc"          , GDB_REMOTE_COMMAND_HANDLER(CatchSvc) },
+    { "getthreadpriority" , GDB_REMOTE_COMMAND_HANDLER(GetThreadPriority)}
 };
 
 static const char *GDB_SkipSpaces(const char *pos)
@@ -199,7 +200,7 @@ GDB_DECLARE_REMOTE_COMMAND_HANDLER(TranslateHandle)
     Handle handle, process;
     s64 refcountRaw;
     u32 refcount;
-    char classBuf[32], serviceBuf[12] = { 0 }, ownerBuf[50] = { 0 };
+    char classBuf[32], serviceBuf[12] = {0}, ownerBuf[50] = { 0 };
     char outbuf[GDB_BUF_LEN / 2 + 1];
 
     if(ctx->commandData[0] == 0)
@@ -234,6 +235,7 @@ GDB_DECLARE_REMOTE_COMMAND_HANDLER(TranslateHandle)
     svcGetHandleInfo(&token, handle, 0x10001);
     svcControlService(SERVICEOP_GET_NAME, serviceBuf, handle);
     refcount = (u32)(refcountRaw - 1);
+
     if(serviceBuf[0] != 0)
         n = sprintf(outbuf, "(%s *)0x%08lx /* %s handle, %lu %s */\n", classBuf, kernelAddr, serviceBuf, refcount, refcount == 1 ? "reference" : "references");
     else if (token == TOKEN_KPROCESS)
@@ -253,13 +255,12 @@ GDB_DECLARE_REMOTE_COMMAND_HANDLER(TranslateHandle)
         }
         n = sprintf(outbuf, "(%s *)0x%08lx /* %lu %s%s */\n", classBuf, kernelAddr, refcount, refcount == 1 ? "reference" : "references", ownerBuf);
     }
-    
+
 end:
     svcCloseHandle(handle);
     svcCloseHandle(process);
     return GDB_SendHexPacket(ctx, outbuf, n);
 }
-
 
 GDB_DECLARE_REMOTE_COMMAND_HANDLER(ListAllHandles)
 {
@@ -413,7 +414,10 @@ GDB_DECLARE_REMOTE_COMMAND_HANDLER(GetMemRegions)
         goto end;
     }
 
-    while (address < 0x40000000 ///< Limit to check for regions
+    s64 TTBCR;
+    svcGetSystemInfo(&TTBCR, 0x10002, 0);
+
+    while (address < (1u << (32 - (u32)TTBCR)) ///< Limit to check for regions
         && posInBuffer < maxPosInBuffer
         && R_SUCCEEDED(svcQueryProcessMemory(&memi, &pagei, handle, address)))
     {
@@ -493,6 +497,18 @@ GDB_DECLARE_REMOTE_COMMAND_HANDLER(CatchSvc)
     }
     else
         return GDB_ReplyErrno(ctx, EILSEQ);
+}
+
+s32 GDB_GetDynamicThreadPriority(GDBContext *ctx, u32 threadId);
+GDB_DECLARE_REMOTE_COMMAND_HANDLER(GetThreadPriority)
+{
+    int n;
+    char outbuf[GDB_BUF_LEN / 2 + 1];
+
+    n = sprintf(outbuf, "Thread (%ld) priority: 0x%02lX\n", ctx->selectedThreadId,
+                GDB_GetDynamicThreadPriority(ctx, ctx->selectedThreadId));
+
+    return GDB_SendHexPacket(ctx, outbuf, n);
 }
 
 GDB_DECLARE_QUERY_HANDLER(Rcmd)
