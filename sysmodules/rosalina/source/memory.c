@@ -1,6 +1,6 @@
 /*
 *   This file is part of Luma3DS
-*   Copyright (C) 2016-2019 Aurora Wright, TuxSH
+*   Copyright (C) 2016-2020 Aurora Wright, TuxSH
 *
 *   This program is free software: you can redistribute it and/or modify
 *   it under the terms of the GNU General Public License as published by
@@ -49,15 +49,6 @@ u8 *memsearch(u8 *startPos, const void *pattern, u32 size, u32 patternSize)
     }
 
     return NULL;
-}
-
-void *memset32(void *dest, u32 value, u32 size)
-{
-    u32 *dest32 = (u32 *)dest;
-
-    for(u32 i = 0; i < size/4; i++) dest32[i] = value;
-
-    return dest;
 }
 
 void hexItoa(u64 number, char *out, u32 digits, bool uppercase)

@@ -1,6 +1,6 @@
 /*
 *   This file is part of Luma3DS
-*   Copyright (C) 2016-2019 Aurora Wright, TuxSH
+*   Copyright (C) 2016-2020 Aurora Wright, TuxSH
 *
 *   This program is free software: you can redistribute it and/or modify
 *   it under the terms of the GNU General Public License as published by
@@ -31,12 +31,12 @@
 #include "memory.h"
 #include "draw.h"
 #include "hbloader.h"
-#include "plgloader.h"
 #include "fmt.h"
-#include "utils.h" // for makeARMBranch
+#include "utils.h" // for makeArmBranch
 #include "minisoc.h"
 #include "ifile.h"
 #include "pmdbgext.h"
+#include "plugin.h"
 
 Menu miscellaneousMenu = {
     "Miscellaneous options menu",
@@ -233,7 +233,6 @@ void MiscellaneousMenu_SaveSettings(void)
 
 void MiscellaneousMenu_InputRedirection(void)
 {
-    static MyThread *inputRedirectionThread = NULL;
     bool done = false;
 
     Result res;
@@ -243,11 +242,7 @@ void MiscellaneousMenu_InputRedirection(void)
 
     if(wasEnabled)
     {
-        res = InputRedirection_DoOrUndoPatches();
-        inputRedirectionEnabled = false;
-        res = MyThread_Join(inputRedirectionThread, 5 * 1000 * 1000 * 1000LL);
-        svcCloseHandle(inputRedirectionThreadStartedEvent);
-
+        res = InputRedirection_Disable(5 * 1000 * 1000 * 1000LL);
         if(res != 0)
             sprintf(buf, "Failed to stop InputRedirection (0x%08lx).", (u32)res);
         else
@@ -294,13 +289,18 @@ void MiscellaneousMenu_InputRedirection(void)
                     res = svcCreateEvent(&inputRedirectionThreadStartedEvent, RESET_STICKY);
                     if(R_SUCCEEDED(res))
                     {
-                        inputRedirectionThread = inputRedirectionCreateThread();
+                        inputRedirectionCreateThread();
                         res = svcWaitSynchronization(inputRedirectionThreadStartedEvent, 10 * 1000 * 1000 * 1000LL);
                         if(res == 0)
                             res = (Result)inputRedirectionStartResult;
 
                         if(res != 0)
+                        {
+                            svcCloseHandle(inputRedirectionThreadStartedEvent);
                             InputRedirection_DoOrUndoPatches();
+                            inputRedirectionEnabled = false;
+                        }
+                        inputRedirectionStartResult = 0;
                     }
                 }
 
@@ -364,8 +364,8 @@ void MiscellaneousMenu_SyncTimeDate(void)
 
         if(input & BUTTON_LEFT) utcOffset = (24 + utcOffset - 1) % 24; // ensure utcOffset >= 0
         if(input & BUTTON_RIGHT) utcOffset = (utcOffset + 1) % 24;
-		if(input & BUTTON_UP) utcOffsetMinute = (utcOffsetMinute + 1) % 60;
-		if(input & BUTTON_DOWN) utcOffsetMinute = (60 + utcOffsetMinute - 1) % 60;
+        if(input & BUTTON_UP) utcOffsetMinute = (utcOffsetMinute + 1) % 60;
+        if(input & BUTTON_DOWN) utcOffsetMinute = (60 + utcOffsetMinute - 1) % 60;
         Draw_FlushFramebuffer();
         Draw_Unlock();
     }
@@ -385,7 +385,7 @@ void MiscellaneousMenu_SyncTimeDate(void)
         if(R_SUCCEEDED(res))
         {
             t += 3600 * utcOffset;
-			t += 60 * utcOffsetMinute;
+            t += 60 * utcOffsetMinute;
             gmtime_r(&t, &localt);
             res = ntpSetTimeDate(&localt);
         }

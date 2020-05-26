@@ -1,6 +1,6 @@
 /*
 *   This file is part of Luma3DS
-*   Copyright (C) 2016-2019 Aurora Wright, TuxSH
+*   Copyright (C) 2016-2020 Aurora Wright, TuxSH
 *
 *   This program is free software: you can redistribute it and/or modify
 *   it under the terms of the GNU General Public License as published by
@@ -47,6 +47,7 @@
 #include "svc/ControlProcess.h"
 #include "svc/CopyHandle.h"
 #include "svc/TranslateHandle.h"
+#include "svc/ControlMemoryUnsafe.h"
 
 void *officialSVCs[0x7E] = {NULL};
 
@@ -60,9 +61,7 @@ void signalSvcEntry(u8 *pageEnd)
 
     // Since DBGEVENT_SYSCALL_ENTRY is non blocking, we'll cheat using EXCEVENT_UNDEFINED_SYSCALL (debug->svcId is fortunately an u16!)
     if(debugOfProcess(currentProcess) != NULL && shouldSignalSyscallDebugEvent(currentProcess, svcId))
-    {
         SignalDebugEvent(DBGEVENT_OUTPUT_STRING, 0xFFFFFFFE, svcId);
-    }
 }
 
 void signalSvcReturn(u8 *pageEnd)
@@ -109,18 +108,32 @@ void *svcHook(u8 *pageEnd)
             return ControlMemoryHookWrapper;
         case 0x03: /* svcExitProcess */
         {
-            // Signal that the process is about to be terminated
             u32      flags = KPROCESS_GET_RVALUE(currentProcess, customFlags);
 
             if (flags & SignalOnExit)
             {
-                SignalEvent(KPROCESS_GET_RVALUE(currentProcess, onProcessExitEvent));
+                // Signal that the process is about to be terminated
+                if (PLG_GetStatus() == PLG_CFG_RUNNING)
+                    PLG_SignalEvent(PLG_CFG_EXIT_EVENT);
+                else if (PLG_GetStatus() == PLG_CFG_SWAPPED)
+                {
+                    KRecursiveLock__Lock(criticalSectionLock);
 
-                KEvent* event = (KEvent *)KProcessHandleTable__ToKAutoObject(handleTableOfProcess(currentProcess),
-                                                            KPROCESS_GET_RVALUE(currentProcess, resumeProcessExitEvent));
-                WaitSynchronization1(NULL, currentCoreContext->objectContext.currentThread, (KSynchronizationObject *)event, 10000000000ULL);
-                ((KAutoObject *)event)->vtable->DecrementReferenceCount((KAutoObject *)event);
+                    // Remove the locked flag from plugin threads
+                    for (KLinkedListNode *node = threadList->list.nodes.first;
+                        node != (KLinkedListNode *)&threadList->list.nodes;
+                        node = node->next)
+                    {
+                        KThread *thread = (KThread *)node->key;
+
+                        if (thread->ownerProcess == currentProcess && thread->schedulingMask & 0x20)
+                            thread->schedulingMask &= ~0x20;
+                    }
+
+                    KRecursiveLock__Unlock(criticalSectionLock);
+                }
             }
+
             return officialSVCs[0x3];
         }
         case 0x29:
@@ -169,6 +182,8 @@ void *svcHook(u8 *pageEnd)
             return UnmapProcessMemoryEx;
         case 0xA2:
             return ControlMemoryEx;
+        case 0xA3:
+            return ControlMemoryUnsafeWrapper;
 
         case 0xB0:
             return ControlService;

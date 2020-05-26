@@ -1,6 +1,6 @@
 /*
 *   This file is part of Luma3DS
-*   Copyright (C) 2016-2019 Aurora Wright, TuxSH
+*   Copyright (C) 2016-2020 Aurora Wright, TuxSH
 *
 *   This program is free software: you can redistribute it and/or modify
 *   it under the terms of the GNU General Public License as published by
@@ -38,7 +38,6 @@ struct HandleDescriptor;
 struct KDebugThread;
 struct KCodeSet;
 struct KDebug;
-struct KResourceLimit;
 struct KPort;
 struct KSession;
 struct KLinkedListNode;
@@ -520,6 +519,9 @@ typedef enum MemOp
   MEMOP_REGION_SYSTEM = 0x200,
   MEMOP_REGION_BASE = 0x300,
   MEMOP_LINEAR = 0x10000,
+
+  MEMOP_OP_MASK = 0xFF,
+  MEMOP_REGION_MASK = 0xF00,
 } MemOp;
 
 /* 17 */
@@ -1083,14 +1085,12 @@ typedef struct KProcess##sys\
   KThread *mainThread;\
   u32 interruptEnabledFlags[4];\
   KProcessHandleTable handleTable;\
-  /* Custom fields for plugin system
-     { */ \
+  /* Custom fields for plugin system */ \
+  /* { */ \
   u32     customFlags; /* see KProcess_CustomFlags enum below */ \
   Handle  onMemoryLayoutChangeEvent;\
-  Handle  onProcessExitEvent;\
-  Handle  resumeProcessExitEvent;\
   /* } */ \
-  u8 gap234[36];\
+  u8 gap234[44];\
   u64 unused;\
 } KProcess##sys;
 
@@ -1195,6 +1195,28 @@ typedef struct FcramLayout
   void *baseAddr;
   u32 baseSize;
 } FcramLayout;
+
+typedef struct RegionDescriptor
+{
+    void               *firstMemoryBlock;
+    void               *lastMemoryBlock;
+    void               *regionStart;
+    u32                 regionSizeInBytes;
+}   RegionDescriptor;
+
+typedef struct FcramDescriptor
+{
+    RegionDescriptor    appRegion;
+    RegionDescriptor    sysRegion;
+    RegionDescriptor    baseRegion;
+    RegionDescriptor *  regionDescsPtr;
+    u32                 fcramStart;
+    u32                 fcramSizeInPages;
+    u32                 baseMemoryStart;
+    u32                 kernelUsageInBytes;
+    u32                 unknown;
+    KObjectMutex        mutex;
+}   FcramDescriptor;
 
 extern bool isN3DS;
 extern void *officialSVCs[0x7E];

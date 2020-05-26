@@ -1,6 +1,6 @@
 /*
 *   This file is part of Luma3DS
-*   Copyright (C) 2016-2019 Aurora Wright, TuxSH
+*   Copyright (C) 2016-2020 Aurora Wright, TuxSH
 *
 *   This program is free software: you can redistribute it and/or modify
 *   it under the terms of the GNU General Public License as published by
@@ -35,7 +35,6 @@
 static u32 nbEnabled = 0;
 static u32 maskedPids[MAX_DEBUG];
 static u32 masks[MAX_DEBUG][8] = {0};
-static u32 *homeBtnPressed = NULL;
 
 bool shouldSignalSyscallDebugEvent(KProcess *process, u8 svcId)
 {
@@ -181,11 +180,11 @@ Result KernelSetStateHook(u32 type, u32 varg1, u32 varg2, u32 varg3)
         }
         case 0x10007:
         {
-            // A bit crude but do the job for a simple notification + reboot, nothing sensitive here
-            if (varg1 > 255 && homeBtnPressed == NULL)
-                homeBtnPressed = PA_FROM_VA_PTR((u32 *)varg1);
-            else if (homeBtnPressed != NULL && *homeBtnPressed == 0)
-                *homeBtnPressed = varg1;
+            if (signalPluginEvent == NULL && varg1)
+            {
+                KProcessHandleTable *table = handleTableOfProcess(currentCoreContext->objectContext.currentProcess);
+                signalPluginEvent = (KEvent *)KProcessHandleTable__ToKAutoObject(table, varg1);
+            }
             break;
         }
         default:

@@ -2,7 +2,7 @@
 # Requires Python >= 3.2 or >= 2.7
 
 #   This file is part of Luma3DS
-#   Copyright (C) 2016-2019 Aurora Wright, TuxSH
+#   Copyright (C) 2016-2020 Aurora Wright, TuxSH
 #
 #   This program is free software: you can redistribute it and/or modify
 #   it under the terms of the GNU General Public License as published by
@@ -22,7 +22,7 @@
 #   Notices displayed by works containing it.
 
 __author__    = "TuxSH"
-__copyright__ = "Copyright (c) 2016 TuxSH"
+__copyright__ = "Copyright (c) 2016-2020 TuxSH"
 __license__   = "GPLv3"
 __version__   = "v1.2"
 
@@ -79,7 +79,7 @@ def hexdump(addr, src, length=16, sep='.' ):
                 text += chr(c)
             else:
                 text += sep
-        result.append(('%08x:  %-'+str(length*(2+1)+1)+'s  |%s|') % (addr + i, hexa, text))
+        result.append(('%08x:  %-'+str(length*(2+1)+1)+'s  |%s|') % (int(addr + i), hexa, text))
 
     return '\n'.join(result)
 
@@ -121,8 +121,8 @@ def main(args=None):
     addtionalDataOffset = stackOffset + stackDumpSize
     additionalData = data[addtionalDataOffset : addtionalDataOffset + additionalDataSize]
 
-    if processor == 9: print("Processor: ARM9")
-    else: print("Processor: ARM11 (core {0})".format(processor >> 16))
+    if processor == 9: print("Processor: Arm9")
+    else: print("Processor: Arm11 (core {0})".format(processor >> 16))
 
     typeDetailsStr = ""
     if exceptionType == 2:
@@ -166,7 +166,6 @@ def main(args=None):
     objdump_res = ""
     try:
         path = os.path.join(os.environ["DEVKITARM"], "bin", "arm-none-eabi-objdump")
-
 
         if os.name == "nt" and path[0] == '/':
             path = ''.join(('c:', path[0], path[5:]))

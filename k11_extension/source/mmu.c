@@ -291,7 +291,7 @@ static union
     };
 } g_rwxState;
 
-// This function patch the permission when memory is mapped in the mmu table (rwx)
+// This function patch the permissions when memory is mapped in the mmu table (rwx)
 KProcessHwInfo *PatchDescriptorAccessControl(KProcessHwInfo *hwInfo, u32 **outState)
 {
     KProcess    *process = (KProcess *)((u32)hwInfo - 0x1C);

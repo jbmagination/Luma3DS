@@ -1,6 +1,6 @@
 /*
 *   This file is part of Luma3DS.
-*   Copyright (C) 2016-2019 Aurora Wright, TuxSH
+*   Copyright (C) 2016-2020 Aurora Wright, TuxSH
 *
 *   SPDX-License-Identifier: (MIT OR GPL-2.0-or-later)
 */
@@ -10,7 +10,7 @@
 #include "fmt.h"
 #include <stdlib.h>
 
-static s32 GDB_GetDynamicThreadPriority(GDBContext *ctx, u32 threadId)
+s32 GDB_GetDynamicThreadPriority(GDBContext *ctx, u32 threadId)
 {
     Handle process, thread;
     Result r;

@@ -1,6 +1,6 @@
 /*
 *   This file is part of Luma3DS
-*   Copyright (C) 2016-2019 Aurora Wright, TuxSH
+*   Copyright (C) 2016-2020 Aurora Wright, TuxSH
 *
 *   This program is free software: you can redistribute it and/or modify
 *   it under the terms of the GNU General Public License as published by
@@ -25,6 +25,8 @@
 */
 
 #include "globals.h"
+#include "utils.h"
+#include "ipc.h"
 
 KRecursiveLock *criticalSectionLock;
 KObjectList *threadList;
@@ -47,6 +49,8 @@ Result (*KProcessHwInfo__CheckVaState)(KProcessHwInfo *hwInfo, u32 va, u32 size,
 Result (*KProcessHwInfo__GetListOfKBlockInfoForVA)(KProcessHwInfo *hwInfo, KLinkedList *list, u32 va, u32 sizeInPage);
 Result (*KProcessHwInfo__MapListOfKBlockInfo)(KProcessHwInfo *this, u32 va, KLinkedList *list, u32 state, u32 perm, u32 sbz);
 Result (*KEvent__Clear)(KEvent *this);
+Result (*KEvent__Signal)(KEvent *this);
+
 void (*KObjectMutex__WaitAndAcquire)(KObjectMutex *this);
 void (*KObjectMutex__ErrorOccured)(void);
 
@@ -56,6 +60,8 @@ void (*KScheduler__AttemptSwitchingThreadContext)(KScheduler *this);
 void (*KLinkedList_KBlockInfo__Clear)(KLinkedList *list);
 
 Result (*ControlMemory)(u32 *addrOut, u32 addr0, u32 addr1, u32 size, MemOp op, MemPerm perm, bool isLoader);
+Result (*doControlMemory)(KProcessHwInfo *this, u32 addr, u32 requestedNbPages, u32 pa, u32 state, u32 perm, u32 a7, u32 region);
+
 void (*SleepThread)(s64 ns);
 Result (*CreateEvent)(Handle *out, ResetType resetType);
 Result (*CloseHandle)(Handle handle);
@@ -101,6 +107,7 @@ bool *isDevUnit;
 vu8 *configPage;
 u32 kernelVersion;
 FcramLayout fcramLayout;
+FcramDescriptor *fcramDescriptor;
 KCoreContext *coreCtxs;
 
 void *originalHandlers[8] = {NULL};
@@ -112,18 +119,62 @@ Result (*InterruptManager__MapInterrupt)(InterruptManager *manager, KBaseInterru
 InterruptManager *interruptManager;
 KBaseInterruptEvent *customInterruptEvent;
 
-void (*initFPU)(void);
-void (*mcuReboot)(void);
-void (*coreBarrier)(void);
+void  (*initFPU)(void);
+void  (*mcuReboot)(void);
+void  (*coreBarrier)(void);
+void* (*kAlloc)(FcramDescriptor *fcramDesc, u32 nbPages, u32 alignment, u32 region);
 
 CfwInfo cfwInfo;
 
 vu32 rosalinaState;
 bool hasStartedRosalinaNetworkFuncsOnce;
+KEvent* signalPluginEvent = NULL;
 
 KLinkedList*    KLinkedList__Initialize(KLinkedList *list)
 {
     list->size = 0;
     list->nodes.first = list->nodes.last = (KLinkedListNode *)&list->nodes;
     return list;
+}
+
+void     PLG_SignalEvent(u32 event)
+{
+    KThread     *currentThread = currentCoreContext->objectContext.currentThread;
+
+    // Set configuration memory field with event
+    *(vu32 *)PA_FROM_VA_PTR((u32 *)0x1FF800F0) |= event;
+
+    // Send notification 0x1001
+    {
+        u32     *cmdbuf = (u32 *)((u8 *)currentCoreContext->objectContext.currentThread->threadLocalStorage + 0x80);
+        u32     backup[3] = { cmdbuf[0], cmdbuf[1], cmdbuf[2] };
+        Handle  srvHandle;
+        SessionInfo *info = SessionInfo_FindFirst("srv:");
+
+        Result  res = createHandleForThisProcess(&srvHandle, &info->session->clientSession.syncObject.autoObject);
+
+        if (res >= 0)
+        {
+            cmdbuf[0] = 0x000C0080;
+            cmdbuf[1] = 0x1001;
+            cmdbuf[2] = 0;
+
+            SendSyncRequest(srvHandle);
+            CloseHandle(srvHandle);
+        }
+
+        cmdbuf[0] = backup[0]; cmdbuf[1] = backup[1]; cmdbuf[2] = backup[2];
+    }
+    // Wait for notification 0x1002
+    WaitSynchronization1(NULL, currentThread, (KSynchronizationObject *)signalPluginEvent, U64_MAX);
+}
+
+void    PLG__WakeAppThread(void)
+{
+    KEvent__Signal(signalPluginEvent);
+}
+
+u32      PLG_GetStatus(void)
+{
+    return (*(vu32 *)PA_FROM_VA_PTR((u32 *)0x1FF800F0)) & 0xFFFF;
 }

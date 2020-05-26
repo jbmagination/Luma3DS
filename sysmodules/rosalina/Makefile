@@ -18,7 +18,7 @@ include $(DEVKITARM)/3ds_rules
 #---------------------------------------------------------------------------------
 TARGET		:=	$(notdir $(CURDIR))
 BUILD		:=	build
-SOURCES		:=	source source/gdb source/menus source/redshift
+SOURCES		:=	source source/gdb source/menus source/plugin source/redshift
 DATA		:=	source/gdb/xml
 INCLUDES	:=	include include/gdb include/menus include/redshift
 
@@ -28,9 +28,8 @@ INCLUDES	:=	include include/gdb include/menus include/redshift
 ARCH	:=	-march=armv6k -mtune=mpcore -mfloat-abi=hard -mtp=soft
 DEFINES :=	-DARM11 -D_3DS
 
-
-CFLAGS	:=	-g -std=gnu11 -Wall -Wextra -Wno-unused-value -O2 -mword-relocations \
-			-fomit-frame-pointer -ffunction-sections -fdata-sections \
+CFLAGS	:=	-g -std=gnu11 -Wall -Wextra -Werror -Wno-unused-value -Os -mword-relocations \
+			-fomit-frame-pointer -ffunction-sections -fdata-sections -fno-math-errno \
 			$(ARCH) $(DEFINES)
 
 CFLAGS	+=	$(INCLUDE)
@@ -38,9 +37,9 @@ CFLAGS	+=	$(INCLUDE)
 CXXFLAGS	:= $(CFLAGS) -fno-rtti -fno-exceptions -std=gnu++11
 
 ASFLAGS	:=	-g $(ARCH)
-LDFLAGS	=	-specs=3dsx.specs -g $(ARCH) -Wl,-Map,$(notdir $*.map),--section-start,.text=0x14000000
+LDFLAGS	=	-specs=3dsx.specs -g $(ARCH) -Wl,-Map,$(notdir $*.map),-wrap,exit,--section-start,.text=0x14000000
 
-LIBS	:=	-lctru -lm
+LIBS	:=	-lctru
 
 #---------------------------------------------------------------------------------
 # list of directories containing libraries, this must be the top level containing
