@@ -223,9 +223,51 @@ static void menuDraw(Menu *menu, u32 selected)
 {
     char versionString[16];
     s64 out;
-    u32 version, commitHash;
+    u32 version, commitHash, seconds, minutes, hours, days, year, month;
+    u64 milliseconds = osGetTime();
     bool isRelease;
     bool isMcuHwcRegistered;
+    
+    seconds = milliseconds/1000;
+    milliseconds %= 1000;
+    minutes = seconds / 60;
+    seconds %= 60;
+    hours = minutes / 60;
+    minutes %= 60;
+    days = hours / 24;
+    hours %= 24;
+    
+    year = 1900; // osGetTime starts in 1900
+
+    while(true)
+    {
+        bool leapYear = (year % 4 == 0 && (year % 100 != 0 || year % 400 == 0));
+        u16 daysInYear = leapYear ? 366 : 365;
+        if(days >= daysInYear)
+        {
+            days -= daysInYear;
+            ++year;
+        }
+        else
+        {
+            static const u8 daysInMonth[12] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+            for(month = 0; month < 12; ++month)
+            {
+                u8 dim = daysInMonth[month];
+
+                if (month == 1 && leapYear)
+                    ++dim;
+
+                if (days >= dim)
+                    days -= dim;
+                else
+                    break;
+            }
+            break;
+        }
+    }
+    days++;
+    month++;
 
     if(R_SUCCEEDED(srvIsServiceRegistered(&isMcuHwcRegistered, "mcu::HWC")) && isMcuHwcRegistered && R_SUCCEEDED(mcuHwcInit()))
     {
@@ -280,6 +322,9 @@ static void menuDraw(Menu *menu, u32 selected)
         Draw_DrawFormattedString(10, SCREEN_BOT_HEIGHT - 20, COLOR_TITLE, "Luma3DS %s", versionString);
     else
         Draw_DrawFormattedString(10, SCREEN_BOT_HEIGHT - 20, COLOR_TITLE, "Luma3DS %s-%08lx", versionString, commitHash);
+
+    Draw_DrawFormattedString(SCREEN_BOT_WIDTH - 30 - SPACING_X * 14, SCREEN_BOT_HEIGHT - 30, COLOR_WHITE, "%04lu-%02lu-%02lu", year, month, days);
+    Draw_DrawFormattedString(SCREEN_BOT_WIDTH - 30 - SPACING_X * 12, SCREEN_BOT_HEIGHT - 20, COLOR_WHITE, "%02lu:%02lu:%02lu", hours, minutes, seconds);
 
     Draw_FlushFramebuffer();
 }
