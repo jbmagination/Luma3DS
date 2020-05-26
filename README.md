@@ -18,8 +18,6 @@ We're implementing our own changes to it, with some extra features.
 - Plugin loader (courtesy of Nanquitas, port to 10.1.3 from mariohackandglitch, small fixes from HIDE810)
 - Blue light filter changes (courtesy of vertexmachina)
 
-I'm hoping to add streaming capabilities from Byebyesky's fork but I'm gonna hold off on that until later.
-
 ---
 
 ### Compiling
