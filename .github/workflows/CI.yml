@@ -1,28 +1,52 @@
-name: CI
+name: master
 
-on:
-  push:
-    paths-ignore:
-      - '.github/ISSUE_TEMPLATE/**'
-      - '.github/*'
-      - 'LICENSE.txt'
-      - 'README.md'
-  pull_request:
-    paths-ignore:
-      - '.github/ISSUE_TEMPLATE/**'
-      - '.github/*'
-      - 'LICENSE.txt'
-      - 'README.md'
+ on:
+   push:
+     paths-ignore:
+       - '.github/ISSUE_TEMPLATE/*'
+       - 'LICENSE.txt'
+       - 'README.md'
+   pull_request:
+     paths-ignore:
+       - '.github/ISSUE_TEMPLATE/*'
+       - 'LICENSE.txt'
+       - 'README.md'
 
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    container: nanquitas/luma3ds
-    steps:
-    - uses: actions/checkout@v2
-    - name: Build
-      run: make -j$(nproc --all)
-    - uses: actions/upload-artifact@v2
-      with:
-        name: Luma3DS
-        path: boot.firm
+ jobs:
+   build:
+     runs-on: ubuntu-latest
+     steps:
+     - uses: actions/checkout@v2
+     - name: Build
+       env:
+         ctr_ver: 16
+       run: |
+         docker pull devkitpro/devkitarm
+         docker run -e ENABLE_COMPATIBILITY_REPORTING -v `pwd`:`pwd` devkitpro/devkitarm /bin/bash -c "\
+         . /etc/profile.d/devkit-env.sh && \
+         sudo apt-get update && \
+         sudo apt-get install p7zip-full python3 python3-pip -y && \
+         git clone --depth=1 https://github.com/smealum/ctrulib.git && \
+         cd ctrulib/libctru && \
+         make install release -j && \
+         pip3 install git+https://github.com/TuxSH/firmtool.git && \
+       - name: Upload artifact
+       uses: actions/upload-artifact@v1
+       with:
+         name: firmtool
+         path: firmtool
+         cd $GITHUB_WORKSPACE && \
+         curl -LJO https://github.com/jakcron/Project_CTR/releases/download/v0."$ctr_ver"/makerom_0"$ctr_ver"_ctrtool.zip && \
+         7z e makerom_*_ctrtool.zip -o/usr/bin Ubuntu/makerom && \
+         chmod +x /usr/bin/makerom && \
+       - name: Upload artifact
+       uses: actions/upload-artifact@v1
+       with:
+         name: makerom
+         path: makerom
+         make -j$(nproc --all)"
+     - name: Upload artifact
+       uses: actions/upload-artifact@v1
+       with:
+         name: Luma3DS
+         path: boot.firm
