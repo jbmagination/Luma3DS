@@ -48,5 +48,5 @@ jobs:
      - name: Upload artifact
        uses: actions/upload-artifact@v1
        with:
-         name: makerom
-         path: /usr/bin/makerom
+         name: ctrtool
+         path: /usr/bin/ctrtool
