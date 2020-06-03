@@ -1,6 +1,6 @@
 name: CI_testing
 
- on:
+on:
    push:
      paths-ignore:
        #- '.github/ISSUE_TEMPLATE/*'
@@ -12,7 +12,7 @@ name: CI_testing
        - 'LICENSE.txt'
        - 'README.md'
 
- jobs:
+jobs:
    build:
      runs-on: ubuntu-latest
      steps:
@@ -30,23 +30,23 @@ name: CI_testing
          cd ctrulib/libctru && \
          make install release -j && \
          pip3 install git+https://github.com/TuxSH/firmtool.git && \
-       - name: Upload artifact
-       uses: actions/upload-artifact@v1
-       with:
-         name: firmtool
-         path: firmtool
          cd $GITHUB_WORKSPACE && \
-         curl -LJO https://github.com/jakcron/Project_CTR/releases/download/v0."$ctr_ver"/makerom_0"$ctr_ver"_ctrtool.zip && \
-         7z e makerom_*_ctrtool.zip -o/usr/bin Ubuntu/makerom && \
-         chmod +x /usr/bin/makerom && \
-       - name: Upload artifact
-       uses: actions/upload-artifact@v1
-       with:
-         name: makerom
-         path: makerom
-         make -j$(nproc --all)"
+         git clone --recursive https://github.com/jakcron/Project_CTR.git && \
+         cd makerom && make rebuild && mv makerom /usr/bin/makerom && \
+         cd .. && cd ctrtool && make rebuild && mv ctrtool /usr/bin/ctrtool && \
+         chmod +x /usr/bin/makerom && chmod +x /usr/bin/ctrtool && \
      - name: Upload artifact
        uses: actions/upload-artifact@v1
        with:
          name: Luma3DS
          path: boot.firm
+     - name: Upload artifact
+       uses: actions/upload-artifact@v1
+       with:
+         name: makerom
+         path: /usr/bin/makerom
+     - name: Upload artifact
+       uses: actions/upload-artifact@v1
+       with:
+         name: makerom
+         path: /usr/bin/makerom
